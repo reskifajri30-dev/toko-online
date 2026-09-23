@@ -21,7 +21,7 @@
   html{scroll-padding-top:env(safe-area-inset-top,0px)}
   html,body{height:100%;margin:0;background:var(--paper);color:var(--ink);
     font-family:'Segoe UI',system-ui,-apple-system,sans-serif;}
-  h1,h2,.brand{font-family:'Georgia','Times New Roman',serif;}
+  h1,.brand{font-family:'Georgia','Times New Roman',serif;}
 
   header{background:var(--green);color:var(--paper);padding:22px 20px 26px;
     position:relative;overflow:hidden;}
@@ -30,47 +30,19 @@
   .brand{font-size:1.6rem;margin:0 0 4px;letter-spacing:.3px;}
   header p{margin:0;opacity:.85;max-width:46ch;line-height:1.5;font-size:.95rem;}
 
-  main{max-width:640px;margin:0 auto;padding:28px 18px 140px;}
+  main{max-width:640px;margin:0 auto;padding:28px 18px 60px;}
+  main h2{font-size:1rem;color:var(--green-dark);margin:0 0 16px;}
 
-  section h2{font-size:1.05rem;margin:26px 0 12px;color:var(--green-dark);
-    border-bottom:2px solid var(--line);padding-bottom:8px;}
-  section h2:first-of-type{margin-top:6px;}
-
-  .item{display:flex;align-items:center;gap:12px;padding:12px 4px;
-    border-bottom:1px solid var(--line);}
-  .item .info{flex:1;min-width:0;}
-  .item .name{font-weight:600;font-size:.97rem;}
-  .item .price{color:#4a5a48;font-size:.85rem;margin-top:2px;}
-  .thumb{width:56px;height:56px;object-fit:cover;border-radius:8px;
-    border:1px solid var(--line);flex-shrink:0;background:#fff;}
-  .stepper{display:flex;align-items:center;gap:0;border:1.5px solid var(--green);
-    border-radius:8px;overflow:hidden;flex-shrink:0;}
-  .stepper button{background:var(--paper);border:none;width:32px;height:32px;
-    font-size:1.1rem;color:var(--green-dark);cursor:pointer;}
-  .stepper button:active{background:var(--mustard);}
-  .stepper .qty{width:28px;text-align:center;font-weight:600;font-size:.9rem;}
-
-  label{display:block;font-size:.85rem;font-weight:600;color:var(--green-dark);
-    margin:14px 0 6px;}
-  input[type=text],textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);
-    border-radius:8px;font-size:.95rem;font-family:inherit;background:#fff;color:var(--ink);}
-  textarea{resize:vertical;min-height:64px;}
-  input:focus,textarea:focus{outline:2px solid var(--mustard);border-color:var(--green);}
-
-  .bar{position:fixed;left:0;right:0;bottom:0;background:var(--green-dark);color:var(--paper);
-    padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));
-    display:flex;align-items:center;justify-content:space-between;gap:14px;}
-  .bar .total{line-height:1.2;}
-  .bar .total b{font-size:1.05rem;display:block;}
-  .bar .total span{font-size:.75rem;opacity:.8;}
-  .bar button{background:var(--tomato);color:#fff;border:none;border-radius:8px;
-    padding:12px 18px;font-size:.95rem;font-weight:700;cursor:pointer;white-space:nowrap;}
-  .bar button:disabled{opacity:.45;cursor:not-allowed;}
-  .bar button:not(:disabled):active{background:#a2361f;}
-
-  .note{font-size:.78rem;color:#5a6a58;margin-top:16px;line-height:1.5;}
-
-  .admin-link{display:block;text-align:center;font-size:.78rem;color:#8a9a88;margin-top:24px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .cat-card{display:block;background:#fff;border:1.5px solid var(--line);border-radius:14px;
+    padding:20px 14px;text-decoration:none;color:var(--ink);text-align:center;
+    transition:transform .1s;}
+  .cat-card:active{transform:scale(.97);background:var(--paper);}
+  .cat-card .icon{width:44px;height:44px;margin:0 auto 10px;border-radius:12px;
+    background:var(--mustard);display:flex;align-items:center;justify-content:center;
+    font-size:1.4rem;}
+  .cat-card .name{font-weight:700;font-size:.95rem;color:var(--green-dark);}
+  .cat-card .sub{font-size:.75rem;color:#6a7a68;margin-top:2px;}
 
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
@@ -83,169 +55,34 @@
 
 <header>
   <p class="brand">Swalayan Masithah</p>
-  <p>Belanja kebutuhan harian, pesanan langsung terkirim ke WhatsApp toko. Isi pesanan, tulis alamat, tinggal tekan kirim.</p>
+  <p>Pilih kategori untuk lihat produk dan pesan langsung lewat WhatsApp.</p>
 </header>
 
 <main>
-  <section>
-    <h2>Sembako</h2>
-    <div id="cat-sembako"></div>
-  </section>
-  <section>
-    <h2>Minuman</h2>
-    <div id="cat-minuman"></div>
-  </section>
-  <section>
-    <h2>Snack</h2>
-    <div id="cat-snack"></div>
-  </section>
-  <section>
-    <h2>Kebutuhan Rumah</h2>
-    <div id="cat-rumah"></div>
-  </section>
-
-  <section>
-    <h2>Data pengiriman</h2>
-    <label for="nama">Nama penerima</label>
-    <input type="text" id="nama" placeholder="Nama lengkap">
-    <label for="alamat">Alamat lengkap</label>
-    <textarea id="alamat" placeholder="Nama jalan, nomor rumah, RT/RW, patokan"></textarea>
-    <label for="telp">Nomor telepon (opsional)</label>
-    <input type="text" id="telp" placeholder="08xxxxxxxxxx">
-    <p class="note">Setelah menekan tombol pesan, pesanan dan alamat akan disalin otomatis ke pesan WhatsApp yang terbuka ke nomor toko. Tinggal tekan kirim di WhatsApp.</p>
-  </section>
+  <h2>Kategori Produk</h2>
+  <div class="grid">
+    <a class="cat-card" href="kategori.html?kategori=sembako">
+      <div class="icon">🍚</div>
+      <div class="name">Sembako</div>
+      <div class="sub">Beras, minyak, gula, dll</div>
+    </a>
+    <a class="cat-card" href="kategori.html?kategori=minuman">
+      <div class="icon">🥤</div>
+      <div class="name">Minuman</div>
+      <div class="sub">Air, teh, kopi</div>
+    </a>
+    <a class="cat-card" href="kategori.html?kategori=snack">
+      <div class="icon">🍪</div>
+      <div class="name">Snack</div>
+      <div class="sub">Keripik, biskuit</div>
+    </a>
+    <a class="cat-card" href="kategori.html?kategori=rumah">
+      <div class="icon">🧴</div>
+      <div class="name">Kebutuhan Rumah</div>
+      <div class="sub">Sabun, deterjen, tisu</div>
+    </a>
+  </div>
 </main>
 
-<div class="bar">
-  <div class="total">
-    <b id="totalHarga">Rp 0</b>
-    <span id="totalItem">0 barang dipilih</span>
-  </div>
-  <button id="btnPesan" disabled>Pesan via WhatsApp</button>
-</div>
-
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
-    authDomain: "toko-online-312bb.firebaseapp.com",
-    projectId: "toko-online-312bb",
-    storageBucket: "toko-online-312bb.firebasestorage.app",
-    messagingSenderId: "7924620978",
-    appId: "1:7924620978:web:dd0e3a1a94102aa7ecb3ab"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // GANTI nomor ini dengan nomor WhatsApp swalayan (format: kode negara tanpa "+" atau "0" di depan)
-  const NOMOR_WA_TOKO = "6282387471371";
-
-  let produk = {};
-  const qty = {};
-
-  function fmt(n){ return "Rp " + n.toLocaleString("id-ID"); }
-
-  async function loadProduk(){
-    produk = { "cat-sembako":[], "cat-minuman":[], "cat-snack":[], "cat-rumah":[] };
-    const snapshot = await getDocs(collection(db, "produk"));
-    snapshot.forEach(docSnap=>{
-      const data = docSnap.data();
-      const catKey = "cat-" + data.kategori;
-      if(!produk[catKey]) produk[catKey] = [];
-      produk[catKey].push({ id: docSnap.id, n: data.nama, p: Number(data.harga), img: data.gambar });
-    });
-    render();
-    updateTotal();
-  }
-
-  function render(){
-    for(const cat in produk){
-      const el = document.getElementById(cat);
-      if(!el) continue;
-      el.innerHTML = "";
-      if(produk[cat].length === 0){
-        el.innerHTML = `<p style="color:#8a8a8a;font-size:.85rem;padding:8px 4px;">Belum ada produk di kategori ini.</p>`;
-        continue;
-      }
-      produk[cat].forEach((item)=>{
-        const key = item.id;
-        if(!(key in qty)) qty[key]=0;
-        const row = document.createElement("div");
-        row.className = "item";
-        row.innerHTML = `
-          <img class="thumb" src="${item.img || ''}" alt="${item.n}" onerror="this.style.visibility='hidden'">
-          <div class="info">
-            <div class="name">${item.n}</div>
-            <div class="price">${fmt(item.p)}</div>
-          </div>
-          <div class="stepper">
-            <button data-key="${key}" data-d="-1" aria-label="Kurangi">−</button>
-            <span class="qty" id="q-${key}">${qty[key]}</span>
-            <button data-key="${key}" data-d="1" aria-label="Tambah">+</button>
-          </div>`;
-        el.appendChild(row);
-      });
-    }
-    document.querySelectorAll(".stepper button").forEach(b=>{
-      b.addEventListener("click", ()=>{
-        const key = b.dataset.key;
-        const d = parseInt(b.dataset.d);
-        qty[key] = Math.max(0, qty[key] + d);
-        document.getElementById("q-"+key).textContent = qty[key];
-        updateTotal();
-      });
-    });
-  }
-
-  function getAllItems(){
-    const all = [];
-    for(const cat in produk) all.push(...produk[cat]);
-    return all;
-  }
-
-  function getSelected(){
-    return getAllItems().filter(it => qty[it.id] > 0).map(it => ({...it, qty: qty[it.id]}));
-  }
-
-  function updateTotal(){
-    const items = getSelected();
-    const total = items.reduce((s,it)=>s+it.p*it.qty,0);
-    const count = items.reduce((s,it)=>s+it.qty,0);
-    document.getElementById("totalHarga").textContent = fmt(total);
-    document.getElementById("totalItem").textContent = count + " barang dipilih";
-    document.getElementById("btnPesan").disabled = count === 0;
-  }
-
-  document.getElementById("btnPesan").addEventListener("click", ()=>{
-    const items = getSelected();
-    const nama = document.getElementById("nama").value.trim();
-    const alamat = document.getElementById("alamat").value.trim();
-    const telp = document.getElementById("telp").value.trim();
-
-    if(!nama || !alamat){
-      alert("Mohon isi nama dan alamat lengkap sebelum memesan.");
-      return;
-    }
-
-    let pesan = "Halo, saya ingin pesan:\n\n";
-    let total = 0;
-    items.forEach(it=>{
-      const sub = it.p*it.qty;
-      total += sub;
-      pesan += `- ${it.n} x${it.qty} = ${fmt(sub)}\n`;
-    });
-    pesan += `\nTotal: ${fmt(total)}\n\n`;
-    pesan += `Nama: ${nama}\nAlamat: ${alamat}\n`;
-    if(telp) pesan += `Telepon: ${telp}\n`;
-
-    const url = `https://wa.me/${NOMOR_WA_TOKO}?text=${encodeURIComponent(pesan)}`;
-    window.open(url, "_blank");
-  });
-
-  loadProduk();
-</script>
 </body>
 </html>
