@@ -3,39 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin - Kelola Produk</title>
-<link rel="stylesheet" href="style.css">
+<title>Admin - Kelola Toko</title>
 <style>
+  :root{
+    --paper:#FBF6EA; --ink:#20301F; --green:#25553F; --green-dark:#173D2B;
+    --tomato:#C1442A; --mustard:#E2A430; --line:#20301F22;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;margin:0;}
   .admin-wrap{max-width:520px;margin:0 auto;padding:24px 18px 60px;}
-  .admin-wrap h1{font-size:1.3rem;color:var(--green-dark);}
-  .produk-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
-  .produk-row img{width:44px;height:44px;object-fit:cover;border-radius:6px;}
-  .produk-row .info{flex:1;}
-  .produk-row button{background:var(--tomato);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;}
-  select{width:100%;padding:10px;border:1.5px solid var(--line);border-radius:8px;font-size:.95rem;background:#fff;}
+  h1{font-size:1.3rem;color:var(--green-dark);font-family:Georgia,serif;}
+  h2{font-size:1.05rem;color:var(--green-dark);margin:34px 0 12px;border-bottom:2px solid var(--line);padding-bottom:6px;}
+  label{display:block;font-size:.85rem;font-weight:600;color:var(--green-dark);margin:14px 0 6px;}
+  input[type=text],select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:.95rem;background:#fff;color:var(--ink);}
   input[type=file]{width:100%;padding:8px 0;font-size:.9rem;}
   .btn-tambah{background:var(--green);color:#fff;border:none;border-radius:8px;padding:12px;width:100%;font-weight:700;font-size:.95rem;cursor:pointer;margin-top:10px;}
   .btn-tambah:disabled{opacity:.5;cursor:not-allowed;}
   .preview{width:80px;height:80px;object-fit:cover;border-radius:8px;margin-top:8px;border:1px solid var(--line);display:none;}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .row img{width:44px;height:44px;object-fit:cover;border-radius:6px;}
+  .row .icon-box{width:44px;height:44px;border-radius:8px;background:var(--mustard);
+    display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
+  .row .info{flex:1;}
+  .row button{background:var(--tomato);color:#fff;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;}
+  .icon-row{display:flex;gap:8px;}
+  .icon-row input{flex:1;}
+  .icon-row input:first-child{flex:0 0 70px;text-align:center;font-size:1.2rem;}
 </style>
 </head>
 <body>
 <div class="admin-wrap">
-  <h1>Kelola Produk</h1>
+  <h1>Kelola Toko</h1>
 
+  <h2>Kategori</h2>
+  <label>Nama & ikon kategori</label>
+  <div class="icon-row">
+    <input type="text" id="iconKategori" placeholder="🥬" maxlength="4">
+    <input type="text" id="namaKategori" placeholder="Contoh: Buah & Sayur">
+  </div>
+  <button class="btn-tambah" id="btnTambahKategori">Tambah Kategori</button>
+
+  <div id="daftarKategori" style="margin-top:16px;">Memuat...</div>
+
+  <h2>Produk</h2>
   <label for="nama">Nama produk</label>
   <input type="text" id="nama" placeholder="Contoh: Beras 5kg">
 
   <label for="harga">Harga (Rp)</label>
   <input type="text" id="harga" placeholder="Contoh: 65000">
 
-  <label for="kategori">Kategori</label>
-  <select id="kategori">
-    <option value="sembako">Sembako</option>
-    <option value="minuman">Minuman</option>
-    <option value="snack">Snack</option>
-    <option value="rumah">Kebutuhan Rumah</option>
-  </select>
+  <label for="kategoriProduk">Kategori</label>
+  <select id="kategoriProduk"><option>Memuat kategori...</option></select>
 
   <label for="gambar">Foto produk (JPG/PNG)</label>
   <input type="file" id="gambar" accept="image/*">
@@ -43,13 +61,13 @@
 
   <button class="btn-tambah" id="btnTambah">Tambah Produk</button>
 
-  <h2 style="margin-top:30px;">Daftar Produk</h2>
-  <div id="daftarProduk"></div>
+  <h2>Daftar Produk</h2>
+  <div id="daftarProduk">Memuat...</div>
 </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
@@ -63,9 +81,73 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const produkRef = collection(db, "produk");
+  const kategoriRef = collection(db, "kategori");
 
   function fmt(n){ return "Rp " + Number(n).toLocaleString("id-ID"); }
 
+  function slugify(str){
+    return str.toLowerCase().trim()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "")
+      .substring(0, 24);
+  }
+
+  // ---------- KATEGORI ----------
+  async function tampilkanDaftarKategori(){
+    const el = document.getElementById("daftarKategori");
+    const select = document.getElementById("kategoriProduk");
+    el.innerHTML = "Memuat...";
+    const snapshot = await getDocs(kategoriRef);
+    el.innerHTML = "";
+    select.innerHTML = "";
+    if(snapshot.empty){
+      el.innerHTML = "<p>Belum ada kategori.</p>";
+      select.innerHTML = "<option value=''>Belum ada kategori</option>";
+      return;
+    }
+    snapshot.forEach(docSnap=>{
+      const data = docSnap.data();
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <div class="icon-box">${data.icon || "🛒"}</div>
+        <div class="info"><b>${data.nama}</b></div>
+        <button data-id="${docSnap.id}">Hapus</button>`;
+      el.appendChild(row);
+
+      const opt = document.createElement("option");
+      opt.value = docSnap.id;
+      opt.textContent = data.nama;
+      select.appendChild(opt);
+    });
+    el.querySelectorAll("button[data-id]").forEach(btn=>{
+      btn.addEventListener("click", async ()=>{
+        if(confirm("Hapus kategori ini? (Produk yang sudah ada di kategori ini TIDAK ikut terhapus, tapi jadi tidak terlihat di halaman utama)")){
+          await deleteDoc(doc(db, "kategori", btn.dataset.id));
+          tampilkanDaftarKategori();
+        }
+      });
+    });
+  }
+
+  document.getElementById("btnTambahKategori").addEventListener("click", async ()=>{
+    const nama = document.getElementById("namaKategori").value.trim();
+    const icon = document.getElementById("iconKategori").value.trim() || "🛒";
+    const kode = slugify(nama);
+
+    if(!nama || !kode){
+      alert("Nama kategori wajib diisi.");
+      return;
+    }
+
+    await setDoc(doc(db, "kategori", kode), { nama, icon });
+
+    document.getElementById("namaKategori").value = "";
+    document.getElementById("iconKategori").value = "";
+    tampilkanDaftarKategori();
+  });
+
+  // ---------- GAMBAR PRODUK ----------
   function resizeImage(file, maxSize = 300, quality = 0.7){
     return new Promise((resolve, reject)=>{
       const reader = new FileReader();
@@ -79,8 +161,7 @@
             h = Math.round(h * ratio);
           }
           const canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
+          canvas.width = w; canvas.height = h;
           canvas.getContext("2d").drawImage(img, 0, 0, w, h);
           resolve(canvas.toDataURL("image/jpeg", quality));
         };
@@ -96,12 +177,12 @@
     const file = e.target.files[0];
     const preview = document.getElementById("preview");
     if(!file){ preview.style.display = "none"; return; }
-    const dataUrl = await resizeImage(file);
-    preview.src = dataUrl;
+    preview.src = await resizeImage(file);
     preview.style.display = "block";
   });
 
-  async function tampilkanDaftar(){
+  // ---------- PRODUK ----------
+  async function tampilkanDaftarProduk(){
     const el = document.getElementById("daftarProduk");
     el.innerHTML = "Memuat...";
     const snapshot = await getDocs(produkRef);
@@ -113,7 +194,7 @@
     snapshot.forEach(docSnap=>{
       const data = docSnap.data();
       const row = document.createElement("div");
-      row.className = "produk-row";
+      row.className = "row";
       row.innerHTML = `
         <img src="${data.gambar || ''}" onerror="this.style.visibility='hidden'">
         <div class="info">
@@ -127,7 +208,7 @@
       btn.addEventListener("click", async ()=>{
         if(confirm("Hapus produk ini?")){
           await deleteDoc(doc(db, "produk", btn.dataset.id));
-          tampilkanDaftar();
+          tampilkanDaftarProduk();
         }
       });
     });
@@ -137,12 +218,12 @@
     const btn = document.getElementById("btnTambah");
     const nama = document.getElementById("nama").value.trim();
     const harga = document.getElementById("harga").value.trim();
-    const kategori = document.getElementById("kategori").value;
+    const kategori = document.getElementById("kategoriProduk").value;
     const fileInput = document.getElementById("gambar");
     const file = fileInput.files[0];
 
-    if(!nama || !harga){
-      alert("Nama dan harga wajib diisi.");
+    if(!nama || !harga || !kategori){
+      alert("Nama, harga, dan kategori wajib diisi.");
       return;
     }
 
@@ -150,9 +231,7 @@
     btn.textContent = "Menyimpan...";
 
     let gambar = "";
-    if(file){
-      gambar = await resizeImage(file);
-    }
+    if(file) gambar = await resizeImage(file);
 
     await addDoc(produkRef, { nama, harga: Number(harga), kategori, gambar });
 
@@ -163,10 +242,11 @@
     btn.disabled = false;
     btn.textContent = "Tambah Produk";
 
-    tampilkanDaftar();
+    tampilkanDaftarProduk();
   });
 
-  tampilkanDaftar();
+  tampilkanDaftarKategori();
+  tampilkanDaftarProduk();
 </script>
 </body>
 </html>

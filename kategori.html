@@ -6,13 +6,8 @@
 <title>Kategori — Swalayan Masithah</title>
 <style>
   :root{
-    --paper:#FBF6EA;
-    --ink:#20301F;
-    --green:#25553F;
-    --green-dark:#173D2B;
-    --tomato:#C1442A;
-    --mustard:#E2A430;
-    --line:#20301F22;
+    --paper:#FBF6EA; --ink:#20301F; --green:#25553F; --green-dark:#173D2B;
+    --tomato:#C1442A; --mustard:#E2A430; --line:#20301F22;
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
@@ -31,7 +26,6 @@
   .brand{font-size:1.4rem;margin:6px 0 0;letter-spacing:.3px;}
 
   main{max-width:640px;margin:0 auto;padding:24px 18px 140px;}
-
   section h2{font-size:1.05rem;margin:0 0 12px;color:var(--green-dark);
     border-bottom:2px solid var(--line);padding-bottom:8px;}
 
@@ -70,9 +64,7 @@
   .note{font-size:.78rem;color:#5a6a58;margin-top:16px;line-height:1.5;}
 
   @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --paper:#F2EEE1;
-    }
+    :root:not([data-theme="light"]){ --paper:#F2EEE1; }
   }
 </style>
 </head>
@@ -80,13 +72,13 @@
 
 <header>
   <a class="back" href="index.html">← Kembali ke kategori</a>
-  <p class="brand" id="judulKategori">Kategori</p>
+  <p class="brand" id="judulKategori">Memuat...</p>
 </header>
 
 <main>
   <section>
     <h2 id="judulProduk">Produk</h2>
-    <div id="daftarProduk"></div>
+    <div id="daftarProduk">Memuat produk...</div>
   </section>
 
   <section>
@@ -111,7 +103,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, query, where, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
@@ -127,22 +119,24 @@
 
   const NOMOR_WA_TOKO = "6282387471371";
 
-  const NAMA_KATEGORI = {
-    sembako: "Sembako",
-    minuman: "Minuman",
-    snack: "Snack",
-    rumah: "Kebutuhan Rumah"
-  };
-
   const params = new URLSearchParams(window.location.search);
-  const kat = params.get("kategori") || "sembako";
-  document.getElementById("judulKategori").textContent = NAMA_KATEGORI[kat] || kat;
-  document.getElementById("judulProduk").textContent = "Produk " + (NAMA_KATEGORI[kat] || kat);
+  const kat = params.get("kategori") || "";
 
   let produk = [];
   const qty = {};
 
   function fmt(n){ return "Rp " + n.toLocaleString("id-ID"); }
+
+  async function loadJudulKategori(){
+    try{
+      const snap = await getDoc(doc(db, "kategori", kat));
+      const nama = snap.exists() ? snap.data().nama : kat;
+      document.getElementById("judulKategori").textContent = nama;
+      document.getElementById("judulProduk").textContent = "Produk " + nama;
+    }catch(e){
+      document.getElementById("judulKategori").textContent = kat;
+    }
+  }
 
   async function loadProduk(){
     const el = document.getElementById("daftarProduk");
@@ -218,7 +212,7 @@
       return;
     }
 
-    let pesan = `Halo, saya ingin pesan (${NAMA_KATEGORI[kat] || kat}):\n\n`;
+    let pesan = `Halo, saya ingin pesan:\n\n`;
     let total = 0;
     items.forEach(it=>{
       const sub = it.p*it.qty;
@@ -233,6 +227,7 @@
     window.open(url, "_blank");
   });
 
+  loadJudulKategori();
   loadProduk();
 </script>
 </body>

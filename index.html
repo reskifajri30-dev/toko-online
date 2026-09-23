@@ -6,13 +6,8 @@
 <title>Swalayan Masithah — Pesan Antar</title>
 <style>
   :root{
-    --paper:#FBF6EA;
-    --ink:#20301F;
-    --green:#25553F;
-    --green-dark:#173D2B;
-    --tomato:#C1442A;
-    --mustard:#E2A430;
-    --line:#20301F22;
+    --paper:#FBF6EA; --ink:#20301F; --green:#25553F; --green-dark:#173D2B;
+    --tomato:#C1442A; --mustard:#E2A430; --line:#20301F22;
     box-sizing:border-box;
     padding-top:env(safe-area-inset-top,0px);
     padding-bottom:env(safe-area-inset-bottom,0px);
@@ -42,12 +37,9 @@
     background:var(--mustard);display:flex;align-items:center;justify-content:center;
     font-size:1.4rem;}
   .cat-card .name{font-weight:700;font-size:.95rem;color:var(--green-dark);}
-  .cat-card .sub{font-size:.75rem;color:#6a7a68;margin-top:2px;}
 
   @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --paper:#F2EEE1;
-    }
+    :root:not([data-theme="light"]){ --paper:#F2EEE1; }
   }
 </style>
 </head>
@@ -60,29 +52,46 @@
 
 <main>
   <h2>Kategori Produk</h2>
-  <div class="grid">
-    <a class="cat-card" href="kategori.html?kategori=sembako">
-      <div class="icon">🍚</div>
-      <div class="name">Sembako</div>
-      <div class="sub">Beras, minyak, gula, dll</div>
-    </a>
-    <a class="cat-card" href="kategori.html?kategori=minuman">
-      <div class="icon">🥤</div>
-      <div class="name">Minuman</div>
-      <div class="sub">Air, teh, kopi</div>
-    </a>
-    <a class="cat-card" href="kategori.html?kategori=snack">
-      <div class="icon">🍪</div>
-      <div class="name">Snack</div>
-      <div class="sub">Keripik, biskuit</div>
-    </a>
-    <a class="cat-card" href="kategori.html?kategori=rumah">
-      <div class="icon">🧴</div>
-      <div class="name">Kebutuhan Rumah</div>
-      <div class="sub">Sabun, deterjen, tisu</div>
-    </a>
-  </div>
+  <div class="grid" id="daftarKategori">Memuat kategori...</div>
 </main>
 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
+    authDomain: "toko-online-312bb.firebaseapp.com",
+    projectId: "toko-online-312bb",
+    storageBucket: "toko-online-312bb.firebasestorage.app",
+    messagingSenderId: "7924620978",
+    appId: "1:7924620978:web:dd0e3a1a94102aa7ecb3ab"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  async function loadKategori(){
+    const el = document.getElementById("daftarKategori");
+    const snapshot = await getDocs(collection(db, "kategori"));
+    el.innerHTML = "";
+    if(snapshot.empty){
+      el.innerHTML = `<p style="grid-column:1/-1;color:#8a8a8a;">Belum ada kategori. Tambahkan lewat halaman admin.</p>`;
+      return;
+    }
+    snapshot.forEach(docSnap=>{
+      const data = docSnap.data();
+      const a = document.createElement("a");
+      a.className = "cat-card";
+      a.href = "kategori.html?kategori=" + docSnap.id;
+      a.innerHTML = `
+        <div class="icon">${data.icon || "🛒"}</div>
+        <div class="name">${data.nama}</div>`;
+      el.appendChild(a);
+    });
+  }
+
+  loadKategori();
+</script>
 </body>
 </html>
