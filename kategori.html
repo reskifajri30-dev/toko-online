@@ -125,7 +125,9 @@
   let produk = [];
   const qty = {};
 
-  function fmt(n){ return "Rp " + n.toLocaleString("id-ID"); }
+  function fmt(n){
+  return "Rp " + n.toLocaleString("id-ID", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
 
   async function loadJudulKategori(){
     try{

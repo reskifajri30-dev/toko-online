@@ -50,7 +50,7 @@
   <input type="text" id="nama" placeholder="Contoh: Beras 5kg">
 
   <label for="harga">Harga (Rp)</label>
-  <input type="text" id="harga" placeholder="Contoh: 65000">
+  <input type="text" id="harga" inputmode="decimal" placeholder="Contoh: 57.302,29">
 
   <label for="kategoriProduk">Kategori</label>
   <select id="kategoriProduk"><option>Memuat kategori...</option></select>
@@ -83,8 +83,28 @@
   const produkRef = collection(db, "produk");
   const kategoriRef = collection(db, "kategori");
 
-  function fmt(n){ return "Rp " + Number(n).toLocaleString("id-ID"); }
+  function fmt(n){
+  return "Rp " + Number(n).toLocaleString("id-ID", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
 
+// Format otomatis saat mengetik: 57302.29 -> 57.302,29
+function formatInputHarga(el){
+  el.addEventListener("input", ()=>{
+    let value = el.value.replace(/[^0-9,]/g, "");
+    const parts = value.split(",");
+    let integer = parts[0].replace(/\./g, "").replace(/^0+(?=\d)/, "");
+    integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    let decimal = parts.length > 1 ? parts[1].slice(0, 2) : undefined;
+    el.value = decimal !== undefined ? integer + "," + decimal : integer;
+  });
+}
+formatInputHarga(document.getElementById("harga"));
+
+// Ubah teks yang sudah diformat (57.302,29) jadi angka asli (57302.29)
+function parseHarga(str){
+  const bersih = str.replace(/\./g, "").replace(",", ".");
+  return parseFloat(bersih) || 0;
+}
   function slugify(str){
     return str.toLowerCase().trim()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -217,12 +237,12 @@
   document.getElementById("btnTambah").addEventListener("click", async ()=>{
     const btn = document.getElementById("btnTambah");
     const nama = document.getElementById("nama").value.trim();
-    const harga = document.getElementById("harga").value.trim();
+    const harga = parseHarga(document.getElementById("harga").value.trim());
     const kategori = document.getElementById("kategoriProduk").value;
     const fileInput = document.getElementById("gambar");
     const file = fileInput.files[0];
 
-    if(!nama || !harga || !kategori){
+    if(!nama || !harga || harga <= 0 || !kategori){
       alert("Nama, harga, dan kategori wajib diisi.");
       return;
     }
@@ -233,7 +253,7 @@
     let gambar = "";
     if(file) gambar = await resizeImage(file);
 
-    await addDoc(produkRef, { nama, harga: Number(harga), kategori, gambar });
+    await addDoc(produkRef, { nama, harga, kategori, gambar });
 
     document.getElementById("nama").value = "";
     document.getElementById("harga").value = "";
