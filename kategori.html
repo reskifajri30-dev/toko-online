@@ -29,6 +29,11 @@
   section h2{font-size:1.05rem;margin:0 0 12px;color:var(--green-dark);
     border-bottom:2px solid var(--line);padding-bottom:8px;}
 
+  input[type=text]{width:100%;padding:10px 12px;border:1.5px solid var(--line);
+    border-radius:8px;font-size:.95rem;font-family:inherit;background:#fff;color:var(--ink);
+    margin-bottom:14px;}
+  input:focus{outline:2px solid var(--mustard);border-color:var(--green);}
+
   .item{display:flex;align-items:center;gap:12px;padding:12px 4px;
     border-bottom:1px solid var(--line);}
   .item .info{flex:1;min-width:0;}
@@ -43,25 +48,16 @@
   .stepper button:active{background:var(--mustard);}
   .stepper .qty{width:28px;text-align:center;font-weight:600;font-size:.9rem;}
 
-  label{display:block;font-size:.85rem;font-weight:600;color:var(--green-dark);
-    margin:14px 0 6px;}
-  input[type=text],textarea{width:100%;padding:10px 12px;border:1.5px solid var(--line);
-    border-radius:8px;font-size:.95rem;font-family:inherit;background:#fff;color:var(--ink);}
-  textarea{resize:vertical;min-height:64px;}
-  input:focus,textarea:focus{outline:2px solid var(--mustard);border-color:var(--green);}
-
   .bar{position:fixed;left:0;right:0;bottom:0;background:var(--green-dark);color:var(--paper);
     padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));
     display:flex;align-items:center;justify-content:space-between;gap:14px;}
   .bar .total{line-height:1.2;}
   .bar .total b{font-size:1.05rem;display:block;}
   .bar .total span{font-size:.75rem;opacity:.8;}
-  .bar button{background:var(--tomato);color:#fff;border:none;border-radius:8px;
-    padding:12px 18px;font-size:.95rem;font-weight:700;cursor:pointer;white-space:nowrap;}
-  .bar button:disabled{opacity:.45;cursor:not-allowed;}
-  .bar button:not(:disabled):active{background:#a2361f;}
-
-  .note{font-size:.78rem;color:#5a6a58;margin-top:16px;line-height:1.5;}
+  .bar a.btn{background:var(--tomato);color:#fff;border:none;border-radius:8px;
+    padding:12px 18px;font-size:.95rem;font-weight:700;cursor:pointer;white-space:nowrap;
+    text-decoration:none;}
+  .bar a.btn.disabled{opacity:.45;pointer-events:none;}
 
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){ --paper:#F2EEE1; }
@@ -77,29 +73,18 @@
 
 <main>
   <section>
-  <h2 id="judulProduk">Produk</h2>
-  <input type="text" id="cariProduk" placeholder="Cari produk..." style="margin-bottom:14px;">
-  <div id="daftarProduk">Memuat produk...</div>
-</section>
-
-  <section>
-    <h2>Data pengiriman</h2>
-    <label for="nama">Nama penerima</label>
-    <input type="text" id="nama" placeholder="Nama lengkap">
-    <label for="alamat">Alamat lengkap</label>
-    <textarea id="alamat" placeholder="Nama jalan, nomor rumah, RT/RW, patokan"></textarea>
-    <label for="telp">Nomor telepon (opsional)</label>
-    <input type="text" id="telp" placeholder="08xxxxxxxxxx">
-    <p class="note">Pesanan dari kategori ini akan dikirim terpisah ke WhatsApp toko.</p>
+    <h2 id="judulProduk">Produk</h2>
+    <input type="text" id="cariProduk" placeholder="Cari produk...">
+    <div id="daftarProduk">Memuat produk...</div>
   </section>
 </main>
 
 <div class="bar">
   <div class="total">
     <b id="totalHarga">Rp 0</b>
-    <span id="totalItem">0 barang dipilih</span>
+    <span id="totalItem">0 barang di keranjang</span>
   </div>
-  <button id="btnPesan" disabled>Pesan via WhatsApp</button>
+  <a class="btn" id="btnKeranjang" href="keranjang.html">Lihat Keranjang</a>
 </div>
 
 <script type="module">
@@ -118,21 +103,39 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  const NOMOR_WA_TOKO = "6282387471371";
-
   const params = new URLSearchParams(window.location.search);
   const kat = params.get("kategori") || "";
 
   let produk = [];
-  const qty = {};
 
   function fmt(n){
-  return "Rp " + n.toLocaleString("id-ID", {minimumFractionDigits:2, maximumFractionDigits:2});
-}
+    return "Rp " + Number(n).toLocaleString("id-ID", {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+
+  // ---------- KERANJANG (disimpan di localStorage, berlaku lintas kategori) ----------
+  function getCart(){
+    try{ return JSON.parse(localStorage.getItem("keranjang") || "{}"); }catch(e){ return {}; }
+  }
+  function saveCart(cart){
+    localStorage.setItem("keranjang", JSON.stringify(cart));
+  }
+  function cartCount(cart){
+    return Object.values(cart).reduce((s,it)=>s+it.qty,0);
+  }
+  function cartTotal(cart){
+    return Object.values(cart).reduce((s,it)=>s+it.p*it.qty,0);
+  }
+  function updateBar(){
+    const cart = getCart();
+    const count = cartCount(cart);
+    document.getElementById("totalHarga").textContent = fmt(cartTotal(cart));
+    document.getElementById("totalItem").textContent = count + " barang di keranjang";
+    document.getElementById("btnKeranjang").classList.toggle("disabled", count === 0);
+  }
 
   async function loadJudulKategori(){
     try{
-      const snap = await getDoc(doc(db, "kategori", kat));     
+      const snap = await getDoc(doc(db, "kategori", kat));
       const nama = snap.exists() ? snap.data().nama : kat;
       document.getElementById("judulKategori").textContent = nama;
       document.getElementById("judulProduk").textContent = "Produk " + nama;
@@ -149,15 +152,15 @@
     produk = [];
     snapshot.forEach(docSnap=>{
       const data = docSnap.data();
-      produk.push({ id: docSnap.id, n: data.nama, p: Number(data.harga), img: data.gambar });
+      produk.push({ id: docSnap.id, n: data.nama, p: Number(data.harga), img: data.gambar, kategori: kat });
     });
     render();
-    updateTotal();
   }
 
   function render(){
     const el = document.getElementById("daftarProduk");
     el.innerHTML = "";
+    const cart = getCart();
     const kataKunci = document.getElementById("cariProduk").value.trim().toLowerCase();
     const produkTampil = kataKunci
       ? produk.filter(item => item.n.toLowerCase().includes(kataKunci))
@@ -172,8 +175,7 @@
       return;
     }
     produkTampil.forEach((item)=>{
-      const key = item.id;
-      if(!(key in qty)) qty[key] = 0;
+      const qtySekarang = cart[item.id] ? cart[item.id].qty : 0;
       const row = document.createElement("div");
       row.className = "item";
       row.innerHTML = `
@@ -183,65 +185,37 @@
           <div class="price">${fmt(item.p)}</div>
         </div>
         <div class="stepper">
-          <button data-key="${key}" data-d="-1" aria-label="Kurangi">−</button>
-          <span class="qty" id="q-${key}">${qty[key]}</span>
-          <button data-key="${key}" data-d="1" aria-label="Tambah">+</button>
+          <button data-id="${item.id}" data-d="-1" aria-label="Kurangi">−</button>
+          <span class="qty" id="q-${item.id}">${qtySekarang}</span>
+          <button data-id="${item.id}" data-d="1" aria-label="Tambah">+</button>
         </div>`;
       el.appendChild(row);
     });
     document.querySelectorAll(".stepper button").forEach(b=>{
       b.addEventListener("click", ()=>{
-        const key = b.dataset.key;
+        const id = b.dataset.id;
         const d = parseInt(b.dataset.d);
-        qty[key] = Math.max(0, qty[key] + d);
-        document.getElementById("q-"+key).textContent = qty[key];
-        updateTotal();
+        const item = produk.find(p => p.id === id);
+        const cart = getCart();
+        const qtyBaru = Math.max(0, (cart[id] ? cart[id].qty : 0) + d);
+
+        if(qtyBaru === 0){
+          delete cart[id];
+        }else{
+          cart[id] = { n: item.n, p: item.p, img: item.img, kategori: item.kategori, qty: qtyBaru };
+        }
+        saveCart(cart);
+        document.getElementById("q-"+id).textContent = qtyBaru;
+        updateBar();
       });
     });
   }
 
-  function getSelected(){
-    return produk.filter(it => qty[it.id] > 0).map(it => ({...it, qty: qty[it.id]}));
-  }
-
-  function updateTotal(){
-    const items = getSelected();
-    const total = items.reduce((s,it)=>s+it.p*it.qty,0);
-    const count = items.reduce((s,it)=>s+it.qty,0);
-    document.getElementById("totalHarga").textContent = fmt(total);
-    document.getElementById("totalItem").textContent = count + " barang dipilih";
-    document.getElementById("btnPesan").disabled = count === 0;
-  }
-
-  document.getElementById("btnPesan").addEventListener("click", ()=>{
-    const items = getSelected();
-    const nama = document.getElementById("nama").value.trim();
-    const alamat = document.getElementById("alamat").value.trim();
-    const telp = document.getElementById("telp").value.trim();
-
-    if(!nama || !alamat){
-      alert("Mohon isi nama dan alamat lengkap sebelum memesan.");
-      return;
-    }
-
-    let pesan = `Halo, saya ingin pesan:\n\n`;
-    let total = 0;
-    items.forEach(it=>{
-      const sub = it.p*it.qty;
-      total += sub;
-      pesan += `- ${it.n} x${it.qty} = ${fmt(sub)}\n`;
-    });
-    pesan += `\nTotal: ${fmt(total)}\n\n`;
-    pesan += `Nama: ${nama}\nAlamat: ${alamat}\n`;
-    if(telp) pesan += `Telepon: ${telp}\n`;
-
-    const url = `https://wa.me/${NOMOR_WA_TOKO}?text=${encodeURIComponent(pesan)}`;
-    window.open(url, "_blank");
-  });
   document.getElementById("cariProduk").addEventListener("input", render);
 
   loadJudulKategori();
   loadProduk();
+  updateBar();
 </script>
 </body>
 </html>
