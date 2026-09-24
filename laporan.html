@@ -32,7 +32,31 @@
   .row .info span{display:block;font-size:.78rem;color:#6a7a68;}
   .row .jumlah{font-weight:700;color:var(--green-dark);}
 
-  select{padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:.9rem;background:#fff;}
+   select,input[type=month]{padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:.9rem;background:#fff;}
+
+  .cetak-box{background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:16px;margin-top:16px;
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .cetak-box button{background:var(--green);color:#fff;border:none;border-radius:8px;
+    padding:10px 16px;font-weight:700;font-size:.9rem;cursor:pointer;}
+
+  #areaCetak{display:none;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #areaCetak, #areaCetak *{visibility:visible;}
+    #areaCetak{display:block;position:absolute;left:0;top:0;width:100%;}
+    .cetak-header{text-align:center;margin-bottom:20px;}
+    .cetak-header h1{font-size:1.4rem;margin:0;}
+    .cetak-header p{margin:4px 0 0;font-size:.9rem;color:#555;}
+    .cetak-ringkasan{display:flex;justify-content:space-around;margin:20px 0;
+      border-top:1px solid #000;border-bottom:1px solid #000;padding:10px 0;}
+    .cetak-ringkasan div{text-align:center;}
+    .cetak-ringkasan b{display:block;font-size:1.1rem;}
+    table{width:100%;border-collapse:collapse;margin-top:14px;font-size:.85rem;}
+    th,td{border:1px solid #999;padding:6px 8px;text-align:left;}
+    th{background:#eee;}
+    .cetak-footer{margin-top:24px;font-size:.75rem;color:#555;text-align:right;}
+  }
 </style>
 </head>
 <body>
@@ -59,8 +83,42 @@
     <canvas id="grafikHarian" height="140"></canvas>
   </div>
 
-  <h2>Produk Terlaris</h2>
+    <h2>Produk Terlaris</h2>
   <div id="daftarTerlaris">Memuat...</div>
+
+  <h2>Cetak Laporan Bulanan</h2>
+  <div class="cetak-box">
+    <input type="month" id="bulanCetak">
+    <button id="btnCetak">🖨️ Cetak Laporan</button>
+  </div>
+</div>
+
+<div id="areaCetak">
+  <div class="cetak-header">
+    <h1>Laporan Penjualan Bulanan</h1>
+    <p id="cetakJudulBulan"></p>
+    <p>Swalayan Masithah</p>
+  </div>
+
+  <div class="cetak-ringkasan">
+    <div><span>Total Pendapatan</span><b id="cetakTotal">Rp 0</b></div>
+    <div><span>Jumlah Pesanan</span><b id="cetakJumlahPesanan">0</b></div>
+    <div><span>Barang Terjual</span><b id="cetakJumlahBarang">0</b></div>
+  </div>
+
+  <h3>Rincian Penjualan per Hari</h3>
+  <table>
+    <thead><tr><th>Tanggal</th><th>Jumlah Pesanan</th><th>Total Pendapatan</th></tr></thead>
+    <tbody id="cetakTabelHarian"></tbody>
+  </table>
+
+  <h3>Produk Terlaris Bulan Ini</h3>
+  <table>
+    <thead><tr><th>Produk</th><th>Jumlah Terjual</th><th>Total Pendapatan</th></tr></thead>
+    <tbody id="cetakTabelProduk"></tbody>
+  </table>
+
+  <p class="cetak-footer" id="cetakDibuat"></p>
 </div>
 
 <script type="module">
@@ -172,7 +230,79 @@
     });
   }
 
-  document.getElementById("rentang").addEventListener("change", proses);
+   document.getElementById("rentang").addEventListener("change", proses);
+
+  // Set default bulan cetak = bulan sekarang
+  const bulanInput = document.getElementById("bulanCetak");
+  const sekarang = new Date();
+  bulanInput.value = sekarang.toISOString().slice(0,7);
+
+  document.getElementById("btnCetak").addEventListener("click", ()=>{
+    const bulanDipilih = bulanInput.value; // format: "2026-09"
+    if(!bulanDipilih){
+      alert("Pilih bulan dulu.");
+      return;
+    }
+
+    const pesananBulanIni = semuaPesanan.filter(p => p.tanggalStr && p.tanggalStr.startsWith(bulanDipilih));
+
+    const totalPendapatan = pesananBulanIni.reduce((s,p)=>s + (p.total || 0), 0);
+    const jumlahBarang = pesananBulanIni.reduce((s,p)=>{
+      return s + (p.items || []).reduce((s2,it)=>s2 + it.qty, 0);
+    }, 0);
+
+    document.getElementById("cetakTotal").textContent = fmt(totalPendapatan);
+    document.getElementById("cetakJumlahPesanan").textContent = pesananBulanIni.length;
+    document.getElementById("cetakJumlahBarang").textContent = jumlahBarang;
+
+    const [tahun, bulan] = bulanDipilih.split("-");
+    const namaBulan = new Date(tahun, bulan - 1, 1).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+    document.getElementById("cetakJudulBulan").textContent = "Periode: " + namaBulan;
+
+    // Rincian per hari
+    const perHari = {};
+    pesananBulanIni.forEach(p=>{
+      if(!perHari[p.tanggalStr]) perHari[p.tanggalStr] = { jumlah: 0, total: 0 };
+      perHari[p.tanggalStr].jumlah += 1;
+      perHari[p.tanggalStr].total += (p.total || 0);
+    });
+    const tanggalUrut = Object.keys(perHari).sort();
+    const tabelHarian = document.getElementById("cetakTabelHarian");
+    tabelHarian.innerHTML = "";
+    if(tanggalUrut.length === 0){
+      tabelHarian.innerHTML = "<tr><td colspan='3'>Tidak ada data penjualan pada bulan ini.</td></tr>";
+    }else{
+      tanggalUrut.forEach(tgl=>{
+        const d = new Date(tgl).toLocaleDateString("id-ID", {day:"numeric", month:"short", year:"numeric"});
+        tabelHarian.innerHTML += `<tr><td>${d}</td><td>${perHari[tgl].jumlah}</td><td>${fmt(perHari[tgl].total)}</td></tr>`;
+      });
+    }
+
+    // Produk terlaris bulan ini
+    const perProduk = {};
+    pesananBulanIni.forEach(p=>{
+      (p.items || []).forEach(it=>{
+        if(!perProduk[it.nama]) perProduk[it.nama] = { qty: 0, total: 0 };
+        perProduk[it.nama].qty += it.qty;
+        perProduk[it.nama].total += it.harga * it.qty;
+      });
+    });
+    const terlarisBulanIni = Object.entries(perProduk).sort((a,b) => b[1].qty - a[1].qty);
+    const tabelProduk = document.getElementById("cetakTabelProduk");
+    tabelProduk.innerHTML = "";
+    if(terlarisBulanIni.length === 0){
+      tabelProduk.innerHTML = "<tr><td colspan='3'>Tidak ada produk terjual pada bulan ini.</td></tr>";
+    }else{
+      terlarisBulanIni.forEach(([nama, data])=>{
+        tabelProduk.innerHTML += `<tr><td>${nama}</td><td>${data.qty}</td><td>${fmt(data.total)}</td></tr>`;
+      });
+    }
+
+    document.getElementById("cetakDibuat").textContent =
+      "Dicetak pada: " + new Date().toLocaleString("id-ID");
+
+    window.print();
+  });
 
   muatData();
 </script>
