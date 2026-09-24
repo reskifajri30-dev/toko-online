@@ -77,9 +77,10 @@
 
 <main>
   <section>
-    <h2 id="judulProduk">Produk</h2>
-    <div id="daftarProduk">Memuat produk...</div>
-  </section>
+  <h2 id="judulProduk">Produk</h2>
+  <input type="text" id="cariProduk" placeholder="Cari produk..." style="margin-bottom:14px;">
+  <div id="daftarProduk">Memuat produk...</div>
+</section>
 
   <section>
     <h2>Data pengiriman</h2>
@@ -131,7 +132,7 @@
 
   async function loadJudulKategori(){
     try{
-      const snap = await getDoc(doc(db, "kategori", kat));
+      const snap = await getDoc(doc(db, "kategori", kat));     
       const nama = snap.exists() ? snap.data().nama : kat;
       document.getElementById("judulKategori").textContent = nama;
       document.getElementById("judulProduk").textContent = "Produk " + nama;
@@ -157,11 +158,20 @@
   function render(){
     const el = document.getElementById("daftarProduk");
     el.innerHTML = "";
+    const kataKunci = document.getElementById("cariProduk").value.trim().toLowerCase();
+    const produkTampil = kataKunci
+      ? produk.filter(item => item.n.toLowerCase().includes(kataKunci))
+      : produk;
+
     if(produk.length === 0){
       el.innerHTML = `<p style="color:#8a8a8a;font-size:.9rem;padding:8px 4px;">Belum ada produk di kategori ini.</p>`;
       return;
     }
-    produk.forEach((item)=>{
+    if(produkTampil.length === 0){
+      el.innerHTML = `<p style="color:#8a8a8a;font-size:.9rem;padding:8px 4px;">Produk "${kataKunci}" tidak ditemukan.</p>`;
+      return;
+    }
+    produkTampil.forEach((item)=>{
       const key = item.id;
       if(!(key in qty)) qty[key] = 0;
       const row = document.createElement("div");
@@ -228,6 +238,7 @@
     const url = `https://wa.me/${NOMOR_WA_TOKO}?text=${encodeURIComponent(pesan)}`;
     window.open(url, "_blank");
   });
+  document.getElementById("cariProduk").addEventListener("input", render);
 
   loadJudulKategori();
   loadProduk();
