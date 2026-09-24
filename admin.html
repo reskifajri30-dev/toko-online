@@ -34,7 +34,8 @@
 <body>
 <div class="admin-wrap">
   <h1>Kelola Toko</h1>
-<a href="laporan.html" style="display:inline-block;margin-bottom:10px;font-size:.85rem;color:var(--green-dark);">📊 Lihat Laporan Penjualan</a>
+  <a href="laporan.html" style="display:inline-block;margin-bottom:10px;font-size:.85rem;color:var(--green-dark);">📊 Lihat Laporan Penjualan</a>
+
   <h2>Kategori</h2>
   <label>Nama & ikon kategori</label>
   <div class="icon-row">
@@ -60,6 +61,7 @@
   <img id="preview" class="preview">
 
   <button class="btn-tambah" id="btnTambah">Tambah Produk</button>
+  <button class="btn-tambah" id="btnBatalEdit" style="display:none;background:#8a8a8a;">Batal Edit</button>
 
   <h2>Daftar Produk</h2>
   <div id="daftarProduk">Memuat...</div>
@@ -67,7 +69,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
@@ -83,28 +85,30 @@
   const produkRef = collection(db, "produk");
   const kategoriRef = collection(db, "kategori");
 
+  let daftarProdukData = {};
+  let sedangEditId = null;
+
   function fmt(n){
-  return "Rp " + Number(n).toLocaleString("id-ID", {minimumFractionDigits:2, maximumFractionDigits:2});
-}
+    return "Rp " + Number(n).toLocaleString("id-ID", {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
 
-// Format otomatis saat mengetik: 57302.29 -> 57.302,29
-function formatInputHarga(el){
-  el.addEventListener("input", ()=>{
-    let value = el.value.replace(/[^0-9,]/g, "");
-    const parts = value.split(",");
-    let integer = parts[0].replace(/\./g, "").replace(/^0+(?=\d)/, "");
-    integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    let decimal = parts.length > 1 ? parts[1].slice(0, 2) : undefined;
-    el.value = decimal !== undefined ? integer + "," + decimal : integer;
-  });
-}
-formatInputHarga(document.getElementById("harga"));
+  function formatInputHarga(el){
+    el.addEventListener("input", ()=>{
+      let value = el.value.replace(/[^0-9,]/g, "");
+      const parts = value.split(",");
+      let integer = parts[0].replace(/\./g, "").replace(/^0+(?=\d)/, "");
+      integer = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+      let decimal = parts.length > 1 ? parts[1].slice(0, 2) : undefined;
+      el.value = decimal !== undefined ? integer + "," + decimal : integer;
+    });
+  }
+  formatInputHarga(document.getElementById("harga"));
 
-// Ubah teks yang sudah diformat (57.302,29) jadi angka asli (57302.29)
-function parseHarga(str){
-  const bersih = str.replace(/\./g, "").replace(",", ".");
-  return parseFloat(bersih) || 0;
-}
+  function parseHarga(str){
+    const bersih = str.replace(/\./g, "").replace(",", ".");
+    return parseFloat(bersih) || 0;
+  }
+
   function slugify(str){
     return str.toLowerCase().trim()
       .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -201,17 +205,45 @@ function parseHarga(str){
     preview.style.display = "block";
   });
 
+  // ---------- MODE EDIT ----------
+  function mulaiEdit(id, data){
+    sedangEditId = id;
+    document.getElementById("nama").value = data.nama;
+    document.getElementById("harga").value = Number(data.harga).toLocaleString("id-ID", {minimumFractionDigits:2, maximumFractionDigits:2});
+    document.getElementById("kategoriProduk").value = data.kategori;
+    document.getElementById("preview").src = data.gambar || "";
+    document.getElementById("preview").style.display = data.gambar ? "block" : "none";
+    document.getElementById("gambar").value = "";
+    document.getElementById("btnTambah").textContent = "Simpan Perubahan";
+    document.getElementById("btnBatalEdit").style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function batalEdit(){
+    sedangEditId = null;
+    document.getElementById("nama").value = "";
+    document.getElementById("harga").value = "";
+    document.getElementById("gambar").value = "";
+    document.getElementById("preview").style.display = "none";
+    document.getElementById("btnTambah").textContent = "Tambah Produk";
+    document.getElementById("btnBatalEdit").style.display = "none";
+  }
+
+  document.getElementById("btnBatalEdit").addEventListener("click", batalEdit);
+
   // ---------- PRODUK ----------
   async function tampilkanDaftarProduk(){
     const el = document.getElementById("daftarProduk");
     el.innerHTML = "Memuat...";
     const snapshot = await getDocs(produkRef);
     el.innerHTML = "";
+    daftarProdukData = {};
     if(snapshot.empty){
       el.innerHTML = "<p>Belum ada produk.</p>";
       return;
     }
     snapshot.forEach(docSnap=>{
+      daftarProdukData[docSnap.id] = docSnap.data();
       const data = docSnap.data();
       const row = document.createElement("div");
       row.className = "row";
@@ -221,6 +253,7 @@ function parseHarga(str){
           <div><b>${data.nama}</b></div>
           <div>${fmt(data.harga)} — ${data.kategori}</div>
         </div>
+        <button data-edit="${docSnap.id}" style="background:var(--green);margin-right:6px;">Edit</button>
         <button data-id="${docSnap.id}">Hapus</button>`;
       el.appendChild(row);
     });
@@ -230,6 +263,12 @@ function parseHarga(str){
           await deleteDoc(doc(db, "produk", btn.dataset.id));
           tampilkanDaftarProduk();
         }
+      });
+    });
+    el.querySelectorAll("button[data-edit]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const id = btn.dataset.edit;
+        mulaiEdit(id, daftarProdukData[id]);
       });
     });
   }
@@ -250,17 +289,28 @@ function parseHarga(str){
     btn.disabled = true;
     btn.textContent = "Menyimpan...";
 
-    let gambar = "";
-    if(file) gambar = await resizeImage(file);
+    try{
+      if(sedangEditId){
+        const dataLama = daftarProdukData[sedangEditId] || {};
+        let gambar = dataLama.gambar || "";
+        if(file) gambar = await resizeImage(file);
 
-    await addDoc(produkRef, { nama, harga, kategori, gambar });
+        await updateDoc(doc(db, "produk", sedangEditId), { nama, harga, kategori, gambar });
+        batalEdit();
+      }else{
+        let gambar = "";
+        if(file) gambar = await resizeImage(file);
+        await addDoc(produkRef, { nama, harga, kategori, gambar });
 
-    document.getElementById("nama").value = "";
-    document.getElementById("harga").value = "";
-    fileInput.value = "";
-    document.getElementById("preview").style.display = "none";
-    btn.disabled = false;
-    btn.textContent = "Tambah Produk";
+        document.getElementById("nama").value = "";
+        document.getElementById("harga").value = "";
+        fileInput.value = "";
+        document.getElementById("preview").style.display = "none";
+      }
+    }finally{
+      btn.disabled = false;
+      btn.textContent = sedangEditId ? "Simpan Perubahan" : "Tambah Produk";
+    }
 
     tampilkanDaftarProduk();
   });
