@@ -103,7 +103,22 @@
   <button id="btnPesan" disabled>Pesan via WhatsApp</button>
 </div>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
+    authDomain: "toko-online-312bb.firebaseapp.com",
+    projectId: "toko-online-312bb",
+    storageBucket: "toko-online-312bb.firebasestorage.app",
+    messagingSenderId: "7924620978",
+    appId: "1:7924620978:web:dd0e3a1a94102aa7ecb3ab"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const pesananRef = collection(db, "pesanan");
+
   const NOMOR_WA_TOKO = "6282387471371";
 
   function fmt(n){
@@ -173,7 +188,8 @@
     document.getElementById("btnPesan").disabled = count === 0;
   }
 
-  document.getElementById("btnPesan").addEventListener("click", ()=>{
+document.getElementById("btnPesan").addEventListener("click", async ()=>{
+    const btn = document.getElementById("btnPesan");
     const cart = getCart();
     const items = Object.values(cart);
     const nama = document.getElementById("nama").value.trim();
@@ -196,10 +212,28 @@
     pesan += `Nama: ${nama}\nAlamat: ${alamat}\n`;
     if(telp) pesan += `Telepon: ${telp}\n`;
 
+    btn.disabled = true;
+    btn.textContent = "Menyimpan...";
+
+    try{
+      const now = new Date();
+      await addDoc(pesananRef, {
+        nama, alamat, telp,
+        items: items.map(it => ({ nama: it.n, harga: it.p, qty: it.qty, kategori: it.kategori || "" })),
+        total,
+        tanggalStr: now.toISOString().slice(0,10),
+        waktu: serverTimestamp()
+      });
+    }catch(e){
+      console.error("Gagal menyimpan laporan penjualan:", e);
+      // Tetap lanjut ke WhatsApp walau gagal simpan laporan, supaya pesanan tidak batal
+    }
+
     const url = `https://wa.me/${NOMOR_WA_TOKO}?text=${encodeURIComponent(pesan)}`;
     window.open(url, "_blank");
 
     localStorage.removeItem("keranjang");
+    btn.disabled = false;
     render();
   });
 

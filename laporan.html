@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laporan Penjualan</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --paper:#FBF6EA; --ink:#20301F; --green:#25553F; --green-dark:#173D2B;
+    --tomato:#C1442A; --mustard:#E2A430; --line:#20301F22;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;margin:0;}
+  .wrap{max-width:720px;margin:0 auto;padding:24px 18px 60px;}
+  h1{font-size:1.3rem;color:var(--green-dark);font-family:Georgia,serif;margin-bottom:4px;}
+  .back{font-size:.85rem;color:var(--green-dark);text-decoration:none;}
+  h2{font-size:1rem;color:var(--green-dark);margin:30px 0 12px;border-bottom:2px solid var(--line);padding-bottom:6px;}
+
+  .kartu{display:flex;gap:12px;margin-top:16px;}
+  .kartu .box{flex:1;background:#fff;border:1.5px solid var(--line);border-radius:10px;
+    padding:14px;text-align:center;}
+  .kartu .box b{display:block;font-size:1.2rem;color:var(--green-dark);margin-top:4px;}
+  .kartu .box span{font-size:.75rem;color:#6a7a68;}
+
+  .chart-wrap{background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:16px;margin-top:10px;}
+
+  .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .row .rank{width:24px;font-weight:700;color:var(--tomato);}
+  .row .info{flex:1;}
+  .row .info b{font-size:.92rem;}
+  .row .info span{display:block;font-size:.78rem;color:#6a7a68;}
+  .row .jumlah{font-weight:700;color:var(--green-dark);}
+
+  select{padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:.9rem;background:#fff;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="admin.html">← Kembali ke Admin</a>
+  <h1>Laporan Penjualan</h1>
+
+  <label style="font-size:.85rem;font-weight:600;display:block;margin-top:14px;">Rentang waktu</label>
+  <select id="rentang">
+    <option value="7">7 hari terakhir</option>
+    <option value="30" selected>30 hari terakhir</option>
+    <option value="90">90 hari terakhir</option>
+    <option value="9999">Semua waktu</option>
+  </select>
+
+  <div class="kartu">
+    <div class="box"><span>Total Pendapatan</span><b id="totalPendapatan">Rp 0</b></div>
+    <div class="box"><span>Jumlah Pesanan</span><b id="jumlahPesanan">0</b></div>
+    <div class="box"><span>Barang Terjual</span><b id="jumlahBarang">0</b></div>
+  </div>
+
+  <h2>Penjualan per Hari</h2>
+  <div class="chart-wrap">
+    <canvas id="grafikHarian" height="140"></canvas>
+  </div>
+
+  <h2>Produk Terlaris</h2>
+  <div id="daftarTerlaris">Memuat...</div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
+    authDomain: "toko-online-312bb.firebaseapp.com",
+    projectId: "toko-online-312bb",
+    storageBucket: "toko-online-312bb.firebasestorage.app",
+    messagingSenderId: "7924620978",
+    appId: "1:7924620978:web:dd0e3a1a94102aa7ecb3ab"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  function fmt(n){
+    return "Rp " + Number(n).toLocaleString("id-ID", {minimumFractionDigits:0, maximumFractionDigits:0});
+  }
+
+  let semuaPesanan = [];
+  let chart = null;
+
+  async function muatData(){
+    const snapshot = await getDocs(collection(db, "pesanan"));
+    semuaPesanan = [];
+    snapshot.forEach(docSnap=>{
+      semuaPesanan.push(docSnap.data());
+    });
+    proses();
+  }
+
+  function proses(){
+    const hariDipilih = parseInt(document.getElementById("rentang").value);
+    const batasWaktu = new Date();
+    batasWaktu.setDate(batasWaktu.getDate() - hariDipilih);
+    const batasStr = batasWaktu.toISOString().slice(0,10);
+
+    const pesananTersaring = semuaPesanan.filter(p => p.tanggalStr && p.tanggalStr >= batasStr);
+
+    // --- Kartu ringkasan ---
+    const totalPendapatan = pesananTersaring.reduce((s,p)=>s + (p.total || 0), 0);
+    const jumlahBarang = pesananTersaring.reduce((s,p)=>{
+      return s + (p.items || []).reduce((s2,it)=>s2 + it.qty, 0);
+    }, 0);
+    document.getElementById("totalPendapatan").textContent = fmt(totalPendapatan);
+    document.getElementById("jumlahPesanan").textContent = pesananTersaring.length;
+    document.getElementById("jumlahBarang").textContent = jumlahBarang;
+
+    // --- Grafik per hari ---
+    const perHari = {};
+    pesananTersaring.forEach(p=>{
+      perHari[p.tanggalStr] = (perHari[p.tanggalStr] || 0) + (p.total || 0);
+    });
+    const tanggalUrut = Object.keys(perHari).sort();
+    const labelChart = tanggalUrut.map(t=>{
+      const d = new Date(t);
+      return d.toLocaleDateString("id-ID", {day:"numeric", month:"short"});
+    });
+    const dataChart = tanggalUrut.map(t => perHari[t]);
+
+    const ctx = document.getElementById("grafikHarian").getContext("2d");
+    if(chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: "bar",
+      data: {
+        labels: labelChart,
+        datasets: [{
+          label: "Pendapatan (Rp)",
+          data: dataChart,
+          backgroundColor: "#25553F"
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => "Rp " + v.toLocaleString("id-ID") } } }
+      }
+    });
+
+    // --- Produk terlaris ---
+    const perProduk = {};
+    pesananTersaring.forEach(p=>{
+      (p.items || []).forEach(it=>{
+        if(!perProduk[it.nama]) perProduk[it.nama] = { qty: 0, total: 0 };
+        perProduk[it.nama].qty += it.qty;
+        perProduk[it.nama].total += it.harga * it.qty;
+      });
+    });
+    const terlaris = Object.entries(perProduk)
+      .sort((a,b) => b[1].qty - a[1].qty)
+      .slice(0, 10);
+
+    const el = document.getElementById("daftarTerlaris");
+    el.innerHTML = "";
+    if(terlaris.length === 0){
+      el.innerHTML = "<p style='color:#8a8a8a;'>Belum ada data penjualan pada rentang ini.</p>";
+      return;
+    }
+    terlaris.forEach(([nama, data], i)=>{
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `
+        <div class="rank">#${i+1}</div>
+        <div class="info"><b>${nama}</b><span>${fmt(data.total)}</span></div>
+        <div class="jumlah">${data.qty} terjual</div>`;
+      el.appendChild(row);
+    });
+  }
+
+  document.getElementById("rentang").addEventListener("change", proses);
+
+  muatData();
+</script>
+</body>
+</html>
