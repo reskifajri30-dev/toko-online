@@ -48,10 +48,27 @@
   .row .btn-edit{background:var(--green);}
   .row .btn-del{background:var(--tomato);}
   .kosong{color:#8a8a8a;font-size:.85rem;padding:10px 0;}
+
+  input[type=email],input[type=password]{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:.95rem;background:#fff;color:var(--ink);}
+  .login-wrap{max-width:360px;margin:12vh auto 0;padding:24px 20px;background:#fff;border:1.5px solid var(--line);border-radius:14px;}
+  .login-wrap h1{margin-top:0;}
+  .login-err{color:var(--tomato);font-size:.85rem;margin-top:10px;min-height:1.2em;}
+  .btn-keluar{background:none;border:1.5px solid var(--line);border-radius:8px;padding:6px 12px;font-size:.8rem;cursor:pointer;color:var(--green-dark);float:right;}
 </style>
 </head>
 <body>
-<div class="admin-wrap">
+<div class="login-wrap" id="loginBox" style="display:none;">
+  <h1>Masuk Admin</h1>
+  <label for="loginEmail">Email</label>
+  <input type="email" id="loginEmail" autocomplete="username">
+  <label for="loginPass">Password</label>
+  <input type="password" id="loginPass" autocomplete="current-password">
+  <button class="btn-tambah" id="btnLogin" type="button">Masuk</button>
+  <p class="login-err" id="loginErr"></p>
+</div>
+
+<div class="admin-wrap" id="appAdmin" style="display:none;">
+  <button class="btn-keluar" id="btnKeluar" type="button">Keluar</button>
   <h1>Kelola Toko</h1>
   <a href="laporan.html" style="display:inline-block;margin-bottom:6px;font-size:.85rem;color:var(--green-dark);">📊 Lihat Laporan Penjualan</a>
 
@@ -70,6 +87,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDaYRZsO7N6pQxudTHxpyBN_n_Sh4eXXV8",
@@ -82,6 +100,7 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const auth = getAuth(app);
   const produkRef = collection(db, "produk");
   const kategoriRef = collection(db, "kategori");
 
@@ -371,11 +390,56 @@
     renderKategori();
   });
 
-  // ---------- MULAI ----------
-  (async ()=>{
-    await Promise.all([muatKategori(), muatProduk()]);
-    renderKategori();
-  })();
+  // ---------- LOGIN ----------
+  const loginBox = document.getElementById("loginBox");
+  const appAdmin = document.getElementById("appAdmin");
+  const loginErr = document.getElementById("loginErr");
+  let sudahMuat = false;
+
+  async function masuk(){
+    const email = document.getElementById("loginEmail").value.trim();
+    const pass = document.getElementById("loginPass").value;
+    loginErr.textContent = "";
+    if(!email || !pass){
+      loginErr.textContent = "Isi email dan password.";
+      return;
+    }
+    const btn = document.getElementById("btnLogin");
+    btn.disabled = true;
+    btn.textContent = "Masuk...";
+    try{
+      await signInWithEmailAndPassword(auth, email, pass);
+    }catch(err){
+      console.error(err);
+      loginErr.textContent = err.code === "auth/network-request-failed"
+        ? "Tidak ada koneksi internet."
+        : "Email atau password salah.";
+    }finally{
+      btn.disabled = false;
+      btn.textContent = "Masuk";
+    }
+  }
+
+  document.getElementById("btnLogin").addEventListener("click", masuk);
+  document.getElementById("loginPass").addEventListener("keydown", e => { if(e.key === "Enter") masuk(); });
+  document.getElementById("btnKeluar").addEventListener("click", ()=> signOut(auth));
+
+  // ---------- MULAI (setelah login) ----------
+  onAuthStateChanged(auth, async (user)=>{
+    if(user){
+      loginBox.style.display = "none";
+      appAdmin.style.display = "block";
+      if(!sudahMuat){
+        sudahMuat = true;
+        await Promise.all([muatKategori(), muatProduk()]);
+        renderKategori();
+      }
+    }else{
+      appAdmin.style.display = "none";
+      loginBox.style.display = "block";
+      sudahMuat = false;
+    }
+  });
 </script>
 </body>
 </html>
